@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+.venvs/
+
+# Node / Desktop
+node_modules/
+desktop/dist/
+desktop/src-tauri/target/
+*.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Data / Uploads / Temp
+data/uploads/*
+data/sessions.json
+data/*.db
+!data/uploads/.gitkeep
+backend/*.pdf
+
+# Logs
+logs/
+*.log
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.coverage.*
+*.coverage
+coverage/
+
+# OS
+Thumbs.db
+.DS_Store?
+Desktop.ini
+
+# SDK / Tooling
+.gradle/
+build/
+local.properties

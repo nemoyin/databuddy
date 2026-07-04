@@ -1,0 +1,20 @@
+name: sample-analysis
+description: 示例数据分析 Skill
+version: 0.1.0
+triggers:
+  - "示例*分析"
+  - "sample*"
+tools:
+  - name: sample_hello
+    description: 示例工具
+    parameters:
+      type: object
+      properties:
+        name:
+          type: string
+          description: 名称
+      required:
+        - name
+workflow:
+  - step: 打招呼 → sample_hello
+  - step: 完成 → LLM summarize

@@ -1,0 +1,55 @@
+name: bidding-analysis
+description: 招投标围标串标分析 Skill — 支持投标关联分析、报价异常检测、中标率分析等场景
+version: 0.1.0
+triggers:
+  - "招投标*"
+  - "围标*"
+  - "串标*"
+  - "投标*分析"
+  - "招标*"
+tools:
+  - name: sql_query
+    description: 从招投标数据库查询项目信息、投标记录、中标情况等
+    parameters:
+      type: object
+      properties:
+        question:
+          type: string
+          description: 自然语言查询问题
+      required:
+        - question
+  - name: query_file
+    description: 对上传的 Excel 投标清单进行 SQL 分析
+    parameters:
+      type: object
+      properties:
+        file_path:
+          type: string
+          description: 上传文件的文件名
+        sql:
+          type: string
+          description: 要执行的 SQL 查询（SELECT 开头）
+      required:
+        - file_path
+        - sql
+  - name: chart_generate
+    description: 将分析结果可视化为图表
+    parameters:
+      type: object
+      properties:
+        data:
+          type: string
+          description: JSON 格式的数据
+        question:
+          type: string
+          description: 图表需求描述
+      required:
+        - data
+        - question
+workflow:
+  - step: 理解用户需求 → LLM analyze
+  - step: 导入投标数据 → query_file (if users upload Excel)
+  - step: 关联分析 → sql_query (query bidder relationships)
+  - step: 异常检测 → LLM analyze (identify suspicious patterns)
+  - step: 可视化 → chart_generate (bid distribution, win rates)
+  - step: 生成分析报告 → LLM summarize

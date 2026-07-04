@@ -1,0 +1,40 @@
+name: pension-analysis
+description: 养老资金异常分析 Skill — 支持养老金发放异常、冒领检测、资金流向分析等场景
+version: 0.1.0
+triggers:
+  - "养老*"
+  - "养老金*"
+  - "社保*资金"
+  - "退休金*"
+  - "养老保险*"
+tools:
+  - name: sql_query
+    description: 从养老资金数据库查询发放记录、参保人信息等
+    parameters:
+      type: object
+      properties:
+        question:
+          type: string
+          description: 自然语言查询问题，如"2024年5月养老金发放总额"
+      required:
+        - question
+  - name: chart_generate
+    description: 将养老数据生成为可视化图表
+    parameters:
+      type: object
+      properties:
+        data:
+          type: string
+          description: JSON 格式的数据
+        question:
+          type: string
+          description: 图表需求描述
+      required:
+        - data
+        - question
+workflow:
+  - step: 理解用户需求 → LLM analyze
+  - step: 查询养老资金数据 → sql_query
+  - step: 异常检测 → LLM analyze (compare with historical norms)
+  - step: 可视化 → chart_generate (if applicable)
+  - step: 生成报告 → LLM summarize
