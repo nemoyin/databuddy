@@ -46,8 +46,7 @@ app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"(https?://localhost(:\d+)?|tauri://localhost|https://tauri\.localhost|null)",
-    allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
