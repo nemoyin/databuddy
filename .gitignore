@@ -35,6 +35,7 @@ data/sessions.json
 data/*.db
 !data/uploads/.gitkeep
 backend/*.pdf
+artifact/
 
 # Logs
 logs/
