@@ -49,5 +49,7 @@ class Orchestrator:
             texts = [e.get("content", "") or str(e.get("data", "")) for e in r["results"]]
             summary_parts.append(f"## {task_desc}\n" + "\n".join(texts))
 
-        yield {"type": "aggregated", "content": "\n\n".join(summary_parts)}
+        aggregated = "\n\n".join(summary_parts)
+        aggregated = AgentRuntime._fix_markdown_tables(aggregated)
+        yield {"type": "aggregated", "content": aggregated}
         yield {"type": "done", "content": "分析完成"}

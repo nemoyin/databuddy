@@ -7,7 +7,7 @@ from sse_starlette.sse import EventSourceResponse
 from jwbuddy.agent.runtime import AgentRuntime
 from jwbuddy.llm.gateway import gateway
 from jwbuddy.tools.registry import registry
-from jwbuddy.api.session import _sessions, update_session
+from jwbuddy.api.session import _sessions, update_session, save_message
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -48,7 +48,26 @@ async def chat(req: ChatRequest):
         update_session(req.session_id, message_count=sess.get("message_count", 0) + 1)
 
     async def event_generator():
+        # 收集最终回复用于持久化
+        final_content = ""
+        tool_results: list[dict] = []
+
         async for event in agent.run(req.message, req.session_id, uploaded_files=req.files):
             yield {"event": event["type"], "data": json.dumps(event, ensure_ascii=False)}
+            if event["type"] == "text":
+                final_content += event.get("content", "")
+            elif event["type"] == "tool_result":
+                tool_results.append({
+                    "name": event.get("name", ""),
+                    "format": event.get("format", "text"),
+                    "data": event.get("data"),
+                })
+
+        # 流结束后持久化消息
+        save_message(req.session_id, "user", req.message, files=req.files or [])
+        if final_content:
+            save_message(req.session_id, "assistant", final_content, format="markdown")
+        for tr in tool_results:
+            save_message(req.session_id, "tool", "", format=tr["format"], data=tr["data"], name=tr["name"])
 
     return EventSourceResponse(event_generator())

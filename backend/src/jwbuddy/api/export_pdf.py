@@ -2,11 +2,27 @@
 from __future__ import annotations
 
 import os
+import re
 from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
 from fpdf import FPDF
+
+
+def _clean_markdown(text: str) -> str:
+    """去除行内 Markdown 符号，保留纯文本"""
+    # **bold** → bold
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    # __bold__ → bold
+    text = re.sub(r'__(.+?)__', r'\1', text)
+    # *italic* → italic（星号在中文中不常见，但安全移除）
+    text = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'\1', text)
+    # `code` → code
+    text = re.sub(r'`([^`]+)`', r'\1', text)
+    # 多个连续空格合并为一个
+    text = re.sub(r'  +', ' ', text)
+    return text.strip()
 
 router = APIRouter(prefix="/export", tags=["export"])
 
@@ -18,12 +34,14 @@ class ExportRequest(BaseModel):
 
 
 def _find_chinese_font() -> tuple[str | None, str | None]:
-    """返回 (字体路径, 粗体路径)"""
+    """返回 (字体路径, 粗体路径) — 支持 Windows / Linux (Docker)"""
     # 优先使用 .ttf 字体（fpdf2 对 .ttc 支持有限）
     ttf_candidates = [
         r"C:\Windows\Fonts\simhei.ttf",
         r"C:\Windows\Fonts\SIMFANG.ttf",
         r"C:\Windows\Fonts\SIMLI.ttf",
+        # Docker: wqy-microhei
+        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
     ]
     ttc_candidates = [
         r"C:\Windows\Fonts\msyh.ttc",
@@ -31,7 +49,7 @@ def _find_chinese_font() -> tuple[str | None, str | None]:
     ]
     for path in ttf_candidates:
         if os.path.exists(path):
-            return path, None  # 粗体复用同一字体
+            return path, None
     for path in ttc_candidates:
         if os.path.exists(path):
             return path, None
@@ -88,28 +106,33 @@ async def export_pdf(req: ExportRequest):
         # 二级标题
         if line.startswith("##"):
             pdf.set_font(FONT, "B", 12)
-            clean = line.lstrip("#").strip().lstrip("*").strip()
+            clean = _clean_markdown(line.lstrip("#").strip().lstrip("*").strip())
             pdf.multi_cell(0, 8, clean)
             pdf.set_font(FONT, "", 10)
 
         # 粗体行（强调）
         elif line.startswith("**") and line.endswith("**"):
             pdf.set_font(FONT, "B", 10)
-            pdf.multi_cell(0, 6, line.strip("*"))
+            pdf.multi_cell(0, 6, _clean_markdown(line.strip("*")))
             pdf.set_font(FONT, "", 10)
 
         # 无序列表
-        elif line.startswith("-") or line.startswith("*"):
+        elif line.startswith("-"):  # 注意：* 已在前面被 *italic* 匹配过
             pdf.set_x(20)
-            pdf.multi_cell(0, 6, line[1:].strip())
+            pdf.multi_cell(0, 6, _clean_markdown(line[1:].strip()))
 
-        # 表格行（用空格模拟）
+        # 有序列表
+        elif re.match(r'^\d+[.、]', line):
+            pdf.set_x(20)
+            pdf.multi_cell(0, 6, _clean_markdown(line))
+
+        # 表格行 — 跳过
         elif line.startswith("|"):
             continue
 
         # 普通段落
         else:
-            pdf.multi_cell(0, 6, line)
+            pdf.multi_cell(0, 6, _clean_markdown(line))
 
     # 表格 — 渲染 tool_result 中的表格数据
     for table in req.tables:

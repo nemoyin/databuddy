@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+*.egg
+.venv/
+venv/
+
+# Node
+node_modules/
+desktop/node_modules/
+
+# Data (mounted as volume in production)
+backend/data/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Environment (use docker env vars instead)
+.env
+*.env.local
+
+# Logs
+logs/
+*.log
+
+# Docs
+docs/
+README.md
+LOOP.md
+CLAUDE.md
+
+# Scripts (not needed in container)
+hfd.sh
+start_all.bat
+start_all.ps1
+launcher.py
+
+# CLI
+cli/

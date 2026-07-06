@@ -18,11 +18,37 @@ SYSTEM_PROMPT = """你是 JWBuddy，纪检监察智能助手。
 回答格式要求：
 - 当有数据结论时，先展示关键数字，再用表格或列表呈现细节
 - 当数据适合可视化时，调用 chart 工具生成图表
-- 始终用中文回答，保持专业、客观。"""
+- 始终用中文回答，保持专业、客观
+
+表格格式规范（重要）：
+- 表格每一行（标题行、分隔行、数据行）之间 **必须换行**
+- **禁止**把多行表格写在同一物理行内
+- 正确示例：
+  | 类别 | 数量 |
+  |------|------|
+  | A | 10 |
+- **禁止**使用「一行内逗号拼接多个字段名」的方式
+- 数据查询结果的汇总统计优先用分析性文字而非大表格"""
 
 
 class AgentRuntime:
     """ReAct Agent 运行时 — 思考-行动-观察循环"""
+
+    @staticmethod
+    def _fix_markdown_tables(text: str) -> str:
+        """修复 LLM 生成时遗漏换行的 Markdown 表格。
+
+        问题场景：LLM 把表格多行写在同一物理行，如：
+          | a | b | |---| | c | d |
+        修复后：
+          | a | b |
+          |---|
+          | c | d |
+        """
+        import re
+        # 匹配 pipe + (可选空白) + pipe，中间没有实质性内容
+        # 这表示一行结束紧接着下一行开始
+        return re.sub(r'\|([ \t]*)\|', '|\n|', text)
 
     def __init__(
         self,
@@ -63,10 +89,16 @@ class AgentRuntime:
             # Step 1: LLM 思考
             yield {"type": "thinking", "content": ""}
 
-            result = await self.llm.chat(
-                messages=memory.get_messages(),
-                tools=self.tools.openai_tools(),
-            )
+            try:
+                result = await self.llm.chat(
+                    messages=memory.get_messages(),
+                    tools=self.tools.openai_tools(),
+                )
+            except Exception as e:
+                err_msg = f"LLM 连接失败: {e}"
+                yield {"type": "error", "content": err_msg}
+                yield {"type": "done", "content": err_msg}
+                return
 
             content = result.content
             if not content.strip() and not result.tool_calls:
@@ -112,6 +144,7 @@ class AgentRuntime:
             tool_call = self._parse_tool_call(content)
             if not tool_call:
                 # No tool call = final answer
+                content = self._fix_markdown_tables(content)
                 yield {"type": "text", "content": content}
                 yield {"type": "done", "content": content}
                 return

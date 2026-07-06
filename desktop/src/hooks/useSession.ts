@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { createSession, listSessions, type SessionData } from "../api/client";
+import { createSession, listSessions, deleteSession, type SessionData } from "../api/client";
 
 export function useSession() {
   const [sessions, setSessions] = useState<SessionData[]>([]);
@@ -35,12 +35,25 @@ export function useSession() {
     setCurrentSessionId(id);
   }, []);
 
+  const removeSession = useCallback(async (id: string) => {
+    try {
+      await deleteSession(id);
+      setSessions(prev => prev.filter(s => s.id !== id));
+      if (currentSessionId === id) {
+        setCurrentSessionId("");
+      }
+    } catch {
+      // silently fail
+    }
+  }, [currentSessionId]);
+
   return {
     sessions,
     currentSessionId,
     loading,
     newSession,
     switchSession,
+    removeSession,
     fetchSessions,
   };
 }

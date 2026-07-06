@@ -63,8 +63,8 @@ export function ChartRenderer({ config, height = 400 }: Props) {
   }
 
   return (
-    <div style={{ padding: 16, background: "#fff", borderRadius: 8, width: "100%" }}>
-      <div ref={chartRef} style={{ width: "100%", height }} />
+    <div style={{ background: "#fff", borderRadius: 8, width: "100%", minWidth: 500 }}>
+      <div ref={chartRef} style={{ width: "100%", height: Math.max(height, 350) }} />
     </div>
   );
 }

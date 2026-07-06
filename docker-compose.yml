@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  jwbuddy:
+    build: .
+    image: jwbuddy:latest
+    container_name: jwbuddy
+    ports:
+      - "8000:8000"
+    volumes:
+      # 持久化会话和消息数据
+      - jwbuddy_data:/app/backend/data
+    environment:
+      # ── LLM 配置（必须） ──
+      # 内网 LLM（如 vLLM / Ollama / 政务云）
+      - JWB_LLM_INTERNAL_BASE_URL=http://host.docker.internal:8001/v1
+      - JWB_LLM_INTERNAL_API_KEY=sk-dummy
+      - JWB_LLM_INTERNAL_MODEL=deepseek-v3
+
+      # 云端 LLM（可选，不配置则自动走内网）
+      # - JWB_LLM_CLOUD_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+      # - JWB_LLM_CLOUD_API_KEY=sk-xxx
+      # - JWB_LLM_CLOUD_MODEL=qwen-plus
+
+      # ── 数据库（可选，仅 sql_query 工具需要） ──
+      # - JWB_DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/db
+      # - JWB_REDIS_URL=redis://host:6379/0
+
+      # ── 其他 ──
+      - JWB_APP_NAME=JWBuddy
+      - JWB_DEBUG=false
+    restart: unless-stopped
+    # 如需连接宿主机服务（如本地 LLM），取消注释：
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
+
+volumes:
+  jwbuddy_data:

@@ -7,11 +7,11 @@ from jwbuddy.config import settings
 from jwbuddy.api import chat, session, upload, export_pdf
 from jwbuddy.api import admin
 from jwbuddy.data.connection import db_manager
+from pathlib import Path
 
 
 def init_tools():
     """Initialize and register all tools with the tool registry.
-
     Called once at startup before any requests are handled.
     """
     from jwbuddy.tools.sql_query import SQLQueryTool
@@ -22,23 +22,18 @@ def init_tools():
 
     tool = SQLQueryTool(llm_gateway=gateway, datasource="default")
     registry.register(tool)
-
     chart_tool = ChartTool(llm_gateway=gateway)
     registry.register(chart_tool)
-
     document_tool = DocumentTool()
     registry.register(document_tool)
-
     from jwbuddy.tools.query_file import QueryFileTool
     registry.register(QueryFileTool())
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: init connections and register tools
     init_tools()
     yield
-    # Shutdown: close connections
     await db_manager.dispose_all()
 
 
@@ -57,7 +52,7 @@ app.include_router(upload.router)
 app.include_router(admin.router)
 app.include_router(export_pdf.router)
 
-# MCP 协议端点 — 将内部 Tool 暴露为标准 MCP 服务
+# MCP 协议端点
 from jwbuddy.mcp.server import MCPServer
 from jwbuddy.mcp.protocol import MCPRequest
 from fastapi import Request
@@ -76,3 +71,21 @@ async def mcp_endpoint(request: Request):
 @app.get("/health")
 async def health():
     return {"status": "ok", "app": settings.app_name}
+
+
+# 托管前端页面（同源访问，解决 Desktop CORS 问题）
+_frontend_dir = Path(__file__).resolve().parent.parent.parent.parent / "desktop" / "dist"
+if _frontend_dir.exists():
+    from fastapi.responses import FileResponse
+    from fastapi.staticfiles import StaticFiles
+    import os
+
+    # 将 /assets 路径挂载为静态文件
+    assets_dir = _frontend_dir / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+    # index.html 和 favicon 等根路径文件
+    @app.get("/")
+    async def root():
+        return FileResponse(str(_frontend_dir / "index.html"))

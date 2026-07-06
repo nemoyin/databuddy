@@ -1,5 +1,6 @@
-import { Layout, Typography, Button, List } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import { useState } from "react";
+import { Layout, Typography, Button, List, Tooltip, message } from "antd";
+import { PlusOutlined, MessageOutlined, CopyOutlined, DeleteOutlined } from "@ant-design/icons";
 import { ChatPanel } from "./components/ChatPanel";
 import { useSession } from "./hooks/useSession";
 
@@ -7,7 +8,8 @@ const { Content, Sider } = Layout;
 const { Title } = Typography;
 
 function App() {
-  const { sessions, currentSessionId, newSession, switchSession } = useSession();
+  const { sessions, currentSessionId, newSession, switchSession, removeSession } = useSession();
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   return (
     <Layout style={{ height: "100vh" }}>
@@ -28,17 +30,54 @@ function App() {
             dataSource={sessions}
             renderItem={item => (
               <List.Item
+                key={item.id}
                 onClick={() => switchSession(item.id)}
+                onMouseEnter={() => setHoveredId(item.id)}
+                onMouseLeave={() => setHoveredId(null)}
                 style={{
                   cursor: "pointer",
                   background: item.id === currentSessionId ? "#e6f4ff" : undefined,
                   borderRadius: 6,
                   padding: "4px 8px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
                 }}
               >
                 <List.Item.Meta
-                  title={<span style={{ fontSize: 14 }}>{item.title}</span>}
+                  avatar={<MessageOutlined />}
+                  title={
+                    <Typography.Text
+                      ellipsis
+                      style={{ maxWidth: hoveredId === item.id ? 120 : 180, fontSize: 14 }}
+                    >
+                      {item.title}
+                    </Typography.Text>
+                  }
+                  description={item.created_at?.slice(0, 10)}
+                  style={{ margin: 0, minWidth: 0 }}
                 />
+                {hoveredId === item.id && (
+                  <span style={{ display: "flex", gap: 2, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                    <Tooltip title="复制问题">
+                      <CopyOutlined
+                        style={{ fontSize: 13, cursor: "pointer", padding: "2px 4px", color: "#888" }}
+                        onClick={() => {
+                          navigator.clipboard.writeText(item.title).then(
+                            () => message.success("已复制"),
+                            () => message.error("复制失败"),
+                          );
+                        }}
+                      />
+                    </Tooltip>
+                    <Tooltip title="删除会话">
+                      <DeleteOutlined
+                        style={{ fontSize: 13, cursor: "pointer", padding: "2px 4px", color: "#888" }}
+                        onClick={() => removeSession(item.id)}
+                      />
+                    </Tooltip>
+                  </span>
+                )}
               </List.Item>
             )}
             style={{ flex: 1, overflow: "auto" }}
@@ -47,7 +86,10 @@ function App() {
       </Sider>
       <Layout>
         <Content style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-          <ChatPanel />
+          <ChatPanel
+            sessionId={currentSessionId}
+            onNewSession={() => newSession()}
+          />
         </Content>
       </Layout>
     </Layout>

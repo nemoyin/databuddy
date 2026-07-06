@@ -21,6 +21,27 @@ export async function listSessions(): Promise<SessionData[]> {
   return resp.json();
 }
 
+export async function deleteSession(sessionId: string): Promise<{ ok: boolean }> {
+  const resp = await fetch(`${API_BASE}/sessions/${sessionId}`, { method: "DELETE" });
+  return resp.json();
+}
+
+export interface MessageData {
+  role: "user" | "assistant" | "tool";
+  content: string;
+  format?: string;
+  data?: unknown;
+  name?: string;
+  files?: string[];
+  timestamp?: string;
+}
+
+export async function fetchSessionMessages(sessionId: string): Promise<MessageData[]> {
+  const resp = await fetch(`${API_BASE}/sessions/${sessionId}/messages`);
+  if (!resp.ok) return [];
+  return resp.json();
+}
+
 export interface UploadedFileInfo {
   filename: string;
   file_path: string;
@@ -46,7 +67,7 @@ export async function* streamChat(
   sessionId: string,
   message: string,
   files?: string[]
-): AsyncGenerator<{ type: string; content?: string; data?: unknown; format?: string }> {
+): AsyncGenerator<{ type: string; content?: string; data?: unknown; format?: string; name?: string; args?: unknown }> {
   const resp = await fetch(`${API_BASE}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

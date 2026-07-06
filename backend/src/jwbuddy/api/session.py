@@ -5,11 +5,44 @@ from datetime import datetime
 from pathlib import Path
 from pydantic import BaseModel
 from fastapi import APIRouter
+from fastapi import HTTPException
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 # 会话持久化存储
 _DATA_FILE = Path("data/sessions.json")
+_MESSAGES_DIR = Path("data/messages")
+
+
+# ── 消息持久化 ──────────────────────────────────────────
+def save_message(session_id: str, role: str, content: str, **kwargs):
+    """保存单条消息到会话历史文件"""
+    _MESSAGES_DIR.mkdir(parents=True, exist_ok=True)
+    filepath = _MESSAGES_DIR / f"{session_id}.json"
+    messages = []
+    if filepath.exists():
+        try:
+            messages = json.loads(filepath.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            messages = []
+    messages.append({
+        "role": role,
+        "content": content,
+        **kwargs,
+        "timestamp": datetime.now().isoformat(),
+    })
+    filepath.write_text(json.dumps(messages, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def get_session_messages(session_id: str) -> list[dict]:
+    """读取会话的历史消息"""
+    filepath = _MESSAGES_DIR / f"{session_id}.json"
+    if filepath.exists():
+        try:
+            return json.loads(filepath.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return []
+    return []
 
 
 def _load_sessions() -> dict[str, dict]:
@@ -78,6 +111,27 @@ async def list_sessions():
 @router.get("/{session_id}")
 async def get_session(session_id: str):
     if session_id not in _sessions:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Session not found")
     return SessionOut(**_sessions[session_id])
+
+
+@router.get("/{session_id}/messages")
+async def list_session_messages(session_id: str):
+    """获取会话的历史消息列表"""
+    if session_id not in _sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return get_session_messages(session_id)
+
+
+@router.delete("/{session_id}")
+async def delete_session(session_id: str):
+    """删除会话及其消息"""
+    if session_id not in _sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    del _sessions[session_id]
+    _save_sessions()
+    # 同时删除消息文件
+    msg_file = _MESSAGES_DIR / f"{session_id}.json"
+    if msg_file.exists():
+        msg_file.unlink()
+    return {"ok": True}
